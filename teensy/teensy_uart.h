@@ -1,8 +1,6 @@
 #ifndef _INCLUDED_UART_H_
 #define _INCLUDED_UART_H_
 
-//#include "kinetis.h"
-
 // uncomment to enable 9 bit formats
 //#define SERIAL_9BIT_SUPPORT
 

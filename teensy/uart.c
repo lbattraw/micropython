@@ -66,7 +66,7 @@ struct _pyb_uart_obj_t {
 bool uart_init(pyb_uart_obj_t *uart_obj, uint32_t baudrate) {
    UartDevice *uh = &uart_obj->uart;
    /*
-
+    PRIOR Working Code
     // init UARTx
     uart_obj->uart.Instance = UARTx;
     HAL_UART_Init(&uart_obj->uart);
@@ -219,19 +219,17 @@ STATIC const mp_arg_t pyb_uart_init_args[] = {
 #define PYB_UART_INIT_NUM_ARGS MP_ARRAY_SIZE(pyb_uart_init_args)
 
 STATIC mp_obj_t pyb_uart_init_helper(pyb_uart_obj_t *self, uint n_args, const mp_obj_t *args, mp_map_t *kw_args) {
-    // parse args
+    // parse args 
     mp_arg_val_t vals[PYB_UART_INIT_NUM_ARGS];
     mp_arg_parse_all(n_args, args, kw_args, PYB_UART_INIT_NUM_ARGS, pyb_uart_init_args, vals);
-    /* uint n_args, const mp_obj_t *args, mp_map_t *kw_args) {
-	puts("In pyb_uart_init, calling pyb_uart_init_helper");
-    return pyb_uart_init_helper(args[0], n_args - 1, args + 1, kw_args); */
-
-    puts("Before memset");
+    
+    printf("In pyb_uart_init_helper, size: %d  \n", &self->uart, sizeof(self->uart));
+    puts("Performing memset on &self->uart");
     memset(&self->uart, 0, sizeof(self->uart));
     puts("Memset complete");
+
     /*
     // set the UART configuration values
-    memset(&self->uart, 0, sizeof(self->uart));
     UART_InitTypeDef *init = &self->uart.Init;
     init->BaudRate = vals[0].u_int;
     init->WordLength = vals[1].u_int == 8 ? UART_WORDLENGTH_8B : UART_WORDLENGTH_9B;
@@ -300,7 +298,7 @@ STATIC mp_obj_t pyb_uart_make_new(mp_obj_t type_in, uint n_args, uint n_kw, cons
 
 // Entry point from external function call
 STATIC mp_obj_t pyb_uart_init(uint n_args, const mp_obj_t *args, mp_map_t *kw_args) {
-	puts("In pyb_uart_init, calling pyb_uart_init_helper");
+	printf("In pyb_uart_init, calling pyb_uart_init_helper, arg count: %d  arg 0: %x  args: %x  mp_map: %x\n",n_args, args[0], args, kw_args);
     return pyb_uart_init_helper(args[0], n_args - 1, args + 1, kw_args);
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_KW(pyb_uart_init_obj, 1, pyb_uart_init);
