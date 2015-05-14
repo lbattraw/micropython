@@ -1,0 +1,17 @@
+void serial_begin(uint32_t divisor);
+void serial_format(uint32_t format);
+void serial_end(void);
+void serial_set_transmit_pin(uint8_t pin);
+void serial_putchar(uint32_t c);
+void serial_write(const void *buf, unsigned int count);
+void serial_flush(void);
+int serial_write_buffer_free(void);
+int serial_available(void);
+int serial_getchar(void);
+int serial_peek(void);
+void serial_clear(void);
+void uart0_status_isr(void);
+void serial_print(const char *p);
+void serial_phex(uint32_t n);
+void serial_phex16(uint32_t n);
+void serial_phex32(uint32_t n);
