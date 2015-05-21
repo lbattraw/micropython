@@ -3,7 +3,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2013, 2014 Damien P. George
+ * Copyright (c) 2015 Daniel Campora
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,13 +23,16 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#ifndef __MICROPY_INCLUDED_PY_FORMATFLOAT_H__
-#define __MICROPY_INCLUDED_PY_FORMATFLOAT_H__
 
-#include "py/mpconfig.h"
+#ifndef CRYPTOHASH_H_
+#define CRYPTOHASH_H_
 
-#if MICROPY_PY_BUILTINS_FLOAT
-int mp_format_float(mp_float_t f, char *buf, size_t bufSize, char fmt, int prec, char sign);
-#endif
+/******************************************************************************
+ DECLARE PUBLIC FUNCTIONS
+ ******************************************************************************/
+extern void CRYPTOHASH_Init (void);
+extern void CRYPTOHASH_SHAMD5Start (uint32_t algo, uint32_t blocklen);
+extern void CRYPTOHASH_SHAMD5Update (uint8_t *data, uint32_t datalen);
+extern void CRYPTOHASH_SHAMD5Read (uint8_t *hash);
 
-#endif // __MICROPY_INCLUDED_PY_FORMATFLOAT_H__
+#endif /* CRYPTOHASH_H_ */
