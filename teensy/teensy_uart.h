@@ -146,7 +146,7 @@ typedef enum {
     UART_STICK_PARITY_DIS   = 0,
     UART_STICK_PARITY_EN    = 1|2
 } UartExistParity;
-// ---------------------------------------------------------- END OF WRONG
+// ---------------------------------------------------------- END OF WRONG SECTION
 
 
 typedef enum {
@@ -195,7 +195,9 @@ typedef struct {
     RcvMsgState       rcv_state;
     int               received;
     int               buff_uart_no;  //indicate which uart use tx/rx buffer
+    UART_TypeDef	   *Instance;
 } UartDevice;
+
 
 //void uart_init(UartBaudRate uart1_br, UartBaudRate uart2_br, UartBaudRate uart3_br);
 int uart1_rx(void);

@@ -24,17 +24,74 @@
 #define SPI0    ((SPI_TypeDef *)0x4002C000)
 #define SPI1    ((SPI_TypeDef *)0x4002D000)
 
+
+
+// Chapter 45: Universal Asynchronous Receiver/Transmitter (UART)
+typedef struct __attribute__((packed)) {
+	volatile uint8_t	BDH;
+	volatile uint8_t	BDL;
+	volatile uint8_t	C1;
+	volatile uint8_t	C2;
+	volatile uint8_t	S1;
+	volatile uint8_t	S2;
+	volatile uint8_t	C3;
+	volatile uint8_t	D;
+	volatile uint8_t	MA1;
+	volatile uint8_t	MA2;
+	volatile uint8_t	C4;
+	volatile uint8_t	C5;
+	volatile uint8_t	ED;
+	volatile uint8_t	MODEM;
+	volatile uint8_t	IR;
+	volatile uint8_t	unused1;
+	volatile uint8_t	PFIFO;
+	volatile uint8_t	CFIFO;
+	volatile uint8_t	SFIFO;
+	volatile uint8_t	TWFIFO;
+	volatile uint8_t	TCFIFO;
+	volatile uint8_t	RWFIFO;
+	volatile uint8_t	RCFIFO;
+	volatile uint8_t	unused2;
+	volatile uint8_t	C7816;
+	volatile uint8_t	IE7816;
+	volatile uint8_t	IS7816;
+	union { volatile uint8_t WP7816T0; volatile uint8_t WP7816T1; };
+	volatile uint8_t	WN7816;
+	volatile uint8_t	WF7816;
+	volatile uint8_t	ET7816;
+	volatile uint8_t	TL7816;
+	volatile uint8_t	unused3;
+	volatile uint8_t	C6;
+	volatile uint8_t	PCTH;
+	volatile uint8_t	PCTL;
+	volatile uint8_t	B1T;
+	volatile uint8_t	SDTH;
+	volatile uint8_t	SDTL;
+	volatile uint8_t	PRE;
+	volatile uint8_t	TPL;
+	volatile uint8_t	IE;
+	volatile uint8_t	WB;
+	volatile uint8_t	S3;
+	volatile uint8_t	S4;
+	volatile uint8_t	RPL;
+	volatile uint8_t	RPREL;
+	volatile uint8_t	CPW;
+	volatile uint8_t	RIDT;
+	volatile uint8_t	TIDT;
+} KINETISK_UART_t;
+
 #define UART0   ((UART_TypeDef *)&UART0_BDH)
 #define UART1   ((UART_TypeDef *)&UART1_BDH)
 #define UART2   ((UART_TypeDef *)&UART2_BDH)
 
 typedef struct {
     uint32_t dummy;
-} I2C_TypeDef;
+} UART_TypeDef;
+
 
 typedef struct {
     uint32_t dummy;
-} UART_TypeDef;
+} I2C_TypeDef;
 
 typedef struct {
     uint32_t dummy;
