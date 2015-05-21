@@ -56,8 +56,8 @@
 
 struct _pyb_uart_obj_t {
     mp_obj_base_t base;
-    pyb_uart_t uart_id;
-    bool is_enabled;
+    pyb_uart_t uart_id : 8;
+    bool is_enabled : 1;
     UartDevice uart;
     UART_TypeDef Instance;
     //UART_HandleTypeDef uart;
@@ -76,17 +76,20 @@ bool uart_init(pyb_uart_obj_t *uart_obj, uint32_t baudrate) {
 	case PYB_UART_NONE:
 		puts("uart_init called for UART_NONE");
 		break;
-	case PYB_UART_1:
+	case PYB_UART_0:
 		UARTx = UART0;
-		serial_begin(BAUD2DIV(baudrate));
+		printf("Calling serial0_begin for port %d at %d baud\n", uart_obj->uart_id, baudrate);
+		serial0_begin(BAUD2DIV(baudrate));
+		break;
+	case PYB_UART_1:
+		UARTx = UART1;
+		printf("Calling serial1_begin for port %d at %d baud\n", uart_obj->uart_id, baudrate);
+		serial1_begin(BAUD2DIV(baudrate));
 		break;
 	case PYB_UART_2:
-		UARTx = UART1;
-		serial2_begin(BAUD2DIV(baudrate));
-		break;
-	case PYB_UART_3:
 		UARTx = UART2;
-		serial3_begin(BAUD2DIV3(baudrate));
+		printf("Calling serial2_begin for port %d at %d baud\n", uart_obj->uart_id, baudrate);
+		serial2_begin(BAUD2DIV3(baudrate));
 		break;
 	default:
 		puts("uart_init called for undefined UART ID, returning false");
@@ -97,8 +100,8 @@ bool uart_init(pyb_uart_obj_t *uart_obj, uint32_t baudrate) {
    //HAL_UART_Init(&uart_obj->uart); // !!!!!!!!!!!!!
    uart_obj->is_enabled = true;  // !!!!!!!!!!!!!!!
    
-   printf("Memset of size %d \n",sizeof(*uh));
-   memset(uh, 0, sizeof(*uh));
+   //printf("Memset of size %d \n",sizeof(*uh));
+   //memset(uh, 0, sizeof(*uh));
    uh->baud_rate = baudrate;
    uh->data_bits = 8;
    uh->stop_bits = 1;
@@ -114,14 +117,14 @@ bool uart_rx_any(pyb_uart_obj_t *uart_obj) {
 	case PYB_UART_NONE:
 		puts("uart_rx_any called for UART_NONE");
 		break;
+        case PYB_UART_0:
+        	return(serial0_available());
+        	break;
         case PYB_UART_1:
-        	return(serial_available());
+        	return(serial1_available());
         	break;
         case PYB_UART_2:
         	return(serial2_available());
-        	break;
-        case PYB_UART_3:
-        	return(serial3_available());
         	break;
         }
         return false;
@@ -132,14 +135,14 @@ int uart_rx_char(pyb_uart_obj_t *uart_obj) {
 	case PYB_UART_NONE:
 		puts("uart_rx_char called for UART_NONE");
 		break;
+        case PYB_UART_0:
+        	return(serial0_getchar());
+        	break;
         case PYB_UART_1:
-        	return(serial_getchar());
+        	return(serial1_getchar());
         	break;
         case PYB_UART_2:
         	return(serial2_getchar());
-        	break;
-        case PYB_UART_3:
-        	return(serial3_getchar());
         	break;
         }
         return(-1);
@@ -152,14 +155,14 @@ void uart_tx_char(pyb_uart_obj_t *uart_obj, int c) {
         case PYB_UART_NONE:
         	puts("uart_tx_char called for UART_NONE");
         	break;
+        case PYB_UART_0:
+        	serial0_putchar(c);
+        	break;
         case PYB_UART_1:
-        	serial_putchar(c);
+        	serial1_putchar(c);
         	break;
         case PYB_UART_2:
         	serial2_putchar(c);
-        	break;
-        case PYB_UART_3:
-        	serial3_putchar(c);
         	break;
         }
 }
@@ -169,14 +172,14 @@ void uart_tx_str(pyb_uart_obj_t *uart_obj, const char *str) {
 	case PYB_UART_NONE:
 		puts("uart_tx_str called for UART_NONE");
 		break;
+        case PYB_UART_0:
+        	serial0_write(str, strlen(str));
+        	break;
         case PYB_UART_1:
-        	serial_write(str, strlen(str));
+        	serial1_write(str, strlen(str));
         	break;
         case PYB_UART_2:
         	serial2_write(str, strlen(str));
-        	break;
-        case PYB_UART_3:
-        	serial3_write(str, strlen(str));
         	break;
         }
 }
@@ -186,14 +189,14 @@ void uart_tx_strn(pyb_uart_obj_t *uart_obj, const char *str, uint len) {
 	case PYB_UART_NONE:
 		puts("uart_tx_strn called for UART_NONE");
 		break;
+        case PYB_UART_0:
+        	serial0_write(str, len);
+        	break;
         case PYB_UART_1:
-        	serial_write(str, len);
+        	serial1_write(str,len);
         	break;
         case PYB_UART_2:
-        	serial2_write(str,len);
-        	break;
-        case PYB_UART_3:
-        	serial3_write(str, len);
+        	serial2_write(str, len);
         	break;
         }
 }
@@ -247,11 +250,11 @@ STATIC const mp_arg_t pyb_uart_init_args[] = {
 
 STATIC mp_obj_t pyb_uart_init_helper(pyb_uart_obj_t *self, uint n_args, const mp_obj_t *args, mp_map_t *kw_args) {
     // parse args 
-    printf("In pyb_uart_init_helper before mp_arg_parse_all; passed %d args, expecting up to %d args\n",n_args, PYB_UART_INIT_NUM_ARGS);
+    printf("In pyb_uart_init_helper before mp_arg_parse_all (port ID %d); passed %d args, expecting up to %d args for initialization (baud, bits per byte, stop bits, parity)\n",self->uart_id, n_args, PYB_UART_INIT_NUM_ARGS);
     mp_arg_val_t vals[PYB_UART_INIT_NUM_ARGS];
     mp_arg_parse_all(n_args, args, kw_args, PYB_UART_INIT_NUM_ARGS, pyb_uart_init_args, vals);
     
-    printf("In pyb_uart_init_helper, &self->uart: %x  size: %d  ID: %x\n", &self->uart, sizeof(self->uart), self->uart_id);
+    printf("In pyb_uart_init_helper, port ID: %d, &self->uart: %x  size: %d  ID: %x\n", self->uart_id, &self->uart, sizeof(self->uart), self->uart_id);
     //puts("Performing memset on &self->uart");
     //memset(&self->uart, 0, sizeof(self->uart));
     //puts("Memset complete");
@@ -276,7 +279,7 @@ STATIC mp_obj_t pyb_uart_init_helper(pyb_uart_obj_t *self, uint n_args, const mp
     init->OverSampling = UART_OVERSAMPLING_16;*/
 
     // init UART (if it fails, it's because the port doesn't exist)
-    printf("Initializing UART number %d at %d baud ...\n", self->uart_id, vals[0].u_int);
+    printf("Initializing UART number %d at %d baud, %d bits, %d stop bits...\n", self->uart_id, vals[0].u_int, vals[1].u_int, vals[2].u_int);
     uart_init(self, vals[0].u_int);
     puts("Init complete!");
     return mp_const_none;

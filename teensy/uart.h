@@ -25,10 +25,10 @@
  */
 
 typedef enum {
-    PYB_UART_NONE = -1,
+    PYB_UART_0 = 0,
     PYB_UART_1 = 1,
     PYB_UART_2 = 2,
-    PYB_UART_3 = 3,
+    PYB_UART_NONE = -1,
 } pyb_uart_t;
 
 // #define USART6              ((USART_TypeDef *) USART6_BASE)
