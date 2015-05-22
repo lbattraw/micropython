@@ -56,39 +56,62 @@
 
 struct _pyb_uart_obj_t {
     mp_obj_base_t base;
-    pyb_uart_t uart_id : 8;
+    //pyb_uart_t uart_id : 8;
     bool is_enabled : 1;
-    UartDevice uart;
-    UART_TypeDef Instance;
+    UartDevice *uart;
+    //UART_TypeDef Instance;
     //UART_HandleTypeDef uart;
 };
+
+UartDevice uart0, uart1, uart2;
+
+/* STM version:
+
+struct _pyb_uart_obj_t {
+    mp_obj_base_t base;
+    UART_HandleTypeDef uart;            // this is 17 words big
+    IRQn_Type irqn;
+    pyb_uart_t uart_id : 8;
+    bool is_enabled : 1;
+    byte char_width;                    // 0 for 7,8 bit chars, 1 for 9 bit chars
+    uint16_t char_mask;                 // 0x7f for 7 bit, 0xff for 8 bit, 0x1ff for 9 bit
+    uint16_t timeout;                   // timeout waiting for first char
+    uint16_t timeout_char;              // timeout waiting between chars
+    uint16_t read_buf_len;              // len in chars; buf can hold len-1 chars
+    volatile uint16_t read_buf_head;    // indexes first empty slot
+    uint16_t read_buf_tail;             // indexes first full slot (not full if equals head)
+    byte *read_buf;                     // byte or uint16_t, depending on char size
+};
+
+*/
 
 // #define UART0                   (*(KINETISK_UART_t *)0x4006A000)
 
 
 bool uart_init(pyb_uart_obj_t *uart_obj, uint32_t baudrate) {
-	UART_TypeDef *UARTx = NULL;
+	//UartDevice *UARTx = NULL;
 	//UART_HandleTypeDef 
-	UartDevice *uh = &uart_obj->uart;
+	UartDevice *uh = uart_obj->uart;
 	
 	puts("uart_init calling: ");
-	switch (uart_obj->uart_id) {
+	
+	switch (uh->uart_id) {
 	case PYB_UART_NONE:
 		puts("uart_init called for UART_NONE");
 		break;
 	case PYB_UART_0:
-		UARTx = UART0;
-		printf("Calling serial0_begin for port %d at %d baud\n", uart_obj->uart_id, baudrate);
+		//UARTx = UART0;
+		printf("Calling serial0_begin for port %d at %d baud\n", (int)uh->uart_id, (int)baudrate);
 		serial0_begin(BAUD2DIV(baudrate));
 		break;
 	case PYB_UART_1:
-		UARTx = UART1;
-		printf("Calling serial1_begin for port %d at %d baud\n", uart_obj->uart_id, baudrate);
+		//UARTx = UART1;
+		printf("Calling serial1_begin for port %d at %d baud\n", (int)uh->uart_id, (int)baudrate);
 		serial1_begin(BAUD2DIV(baudrate));
 		break;
 	case PYB_UART_2:
-		UARTx = UART2;
-		printf("Calling serial2_begin for port %d at %d baud\n", uart_obj->uart_id, baudrate);
+		//UARTx = UART2;
+		printf("Calling serial2_begin for port %d at %d baud\n", (int)uh->uart_id, (int)baudrate);
 		serial2_begin(BAUD2DIV3(baudrate));
 		break;
 	default:
@@ -96,24 +119,28 @@ bool uart_init(pyb_uart_obj_t *uart_obj, uint32_t baudrate) {
 		return(false);
 	}
 
-   uart_obj->uart.Instance = UARTx; // UARTx set to UART[0-2] base address
+   //UARTx = uart_obj->uart; // UARTx set to UART[0-2] base address
    //HAL_UART_Init(&uart_obj->uart); // !!!!!!!!!!!!!
-   uart_obj->is_enabled = true;  // !!!!!!!!!!!!!!!
+   //!!!uart_obj->is_enabled = true;
    
    //printf("Memset of size %d \n",sizeof(*uh));
    //memset(uh, 0, sizeof(*uh));
+   
+   /*
+   THIS section should be changing the settings in hardware, *uh already has all the data initialized with values
    uh->baud_rate = baudrate;
    uh->data_bits = 8;
    uh->stop_bits = 1;
    uh->parity = 0;  // 0: None   1: ODD   2: EVEN
    uh->flow_ctrl = 0;  // 0 - none 1 - full
-   printf("UART(%d) initialized at baud rate %d\n", uart_obj->uart_id, baudrate);
+   */
+   printf("UART(%d) initialized at baud rate %d\n", (int)uh->uart_id, (int)uh->baud_rate);
    //serial_write(str, strlen(str));
    return true; //uart_init2(uart_obj);
 }
 
 bool uart_rx_any(pyb_uart_obj_t *uart_obj) {
-	switch (uart_obj->uart_id) {
+	switch (uart_obj->uart->uart_id) {
 	case PYB_UART_NONE:
 		puts("uart_rx_any called for UART_NONE");
 		break;
@@ -131,7 +158,7 @@ bool uart_rx_any(pyb_uart_obj_t *uart_obj) {
 }
 
 int uart_rx_char(pyb_uart_obj_t *uart_obj) {
-	switch (uart_obj->uart_id) {
+	switch (uart_obj->uart->uart_id) {
 	case PYB_UART_NONE:
 		puts("uart_rx_char called for UART_NONE");
 		break;
@@ -151,7 +178,7 @@ int uart_rx_char(pyb_uart_obj_t *uart_obj) {
 
 
 void uart_tx_char(pyb_uart_obj_t *uart_obj, int c) {
-        switch (uart_obj->uart_id) {
+        switch (uart_obj->uart->uart_id) {
         case PYB_UART_NONE:
         	puts("uart_tx_char called for UART_NONE");
         	break;
@@ -168,7 +195,7 @@ void uart_tx_char(pyb_uart_obj_t *uart_obj, int c) {
 }
 
 void uart_tx_str(pyb_uart_obj_t *uart_obj, const char *str) {
-	switch (uart_obj->uart_id) {
+	switch (uart_obj->uart->uart_id) {
 	case PYB_UART_NONE:
 		puts("uart_tx_str called for UART_NONE");
 		break;
@@ -185,7 +212,7 @@ void uart_tx_str(pyb_uart_obj_t *uart_obj, const char *str) {
 }
 
 void uart_tx_strn(pyb_uart_obj_t *uart_obj, const char *str, uint len) {
-	switch (uart_obj->uart_id) {
+	switch (uart_obj->uart->uart_id) {
 	case PYB_UART_NONE:
 		puts("uart_tx_strn called for UART_NONE");
 		break;
@@ -216,11 +243,11 @@ void uart_tx_strn_cooked(pyb_uart_obj_t *uart_obj, const char *str, uint len) {
 STATIC void pyb_uart_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_t kind) {
     pyb_uart_obj_t *self = self_in;
     if (!self->is_enabled) {
-        mp_printf(print, "UART(%lu)", self->uart_id);
+        mp_printf(print, "UART(%lu)", self->uart->uart_id);
     } else {
 #if 0
         mp_printf(print, "UART(%lu, baudrate=%u, bits=%u, stop=%u",
-            self->uart_id, self->uart.Init.BaudRate,
+            self->uart_id, self->uart->Init.BaudRate,
             self->uart.Init.WordLength == UART_WORDLENGTH_8B ? 8 : 9,
             self->uart.Init.StopBits == UART_STOPBITS_1 ? 1 : 2);
         if (self->uart.Init.Parity == UART_PARITY_NONE) {
@@ -232,7 +259,7 @@ STATIC void pyb_uart_print(const mp_print_t *print, mp_obj_t self_in, mp_print_k
     }
 }
 
-/// \method init(baudrate, *, bits=8, stop=1, parity=None)
+/// \method init(uart_id, baudrate, *, bits=8, stop=1, parity=None)
 ///
 /// Initialise the UART with the given parameters:
 ///
@@ -242,44 +269,82 @@ STATIC void pyb_uart_print(const mp_print_t *print, mp_obj_t self_in, mp_print_k
 ///   - `parity` is the parity, `None`, 0 (even) or 1 (odd).
 STATIC const mp_arg_t pyb_uart_init_args[] = {
     { MP_QSTR_baudrate, MP_ARG_REQUIRED | MP_ARG_INT, {.u_int = 115200} },
+    { MP_QSTR_uart_id,   MP_ARG_KW_ONLY | MP_ARG_INT,  {.u_int = 0} },
     { MP_QSTR_bits,     MP_ARG_KW_ONLY | MP_ARG_INT,  {.u_int = 8} },
     { MP_QSTR_stop,     MP_ARG_KW_ONLY | MP_ARG_INT,  {.u_int = 1} },
     { MP_QSTR_parity,   MP_ARG_KW_ONLY | MP_ARG_OBJ,  {.u_obj = mp_const_none} },
 };
 #define PYB_UART_INIT_NUM_ARGS MP_ARRAY_SIZE(pyb_uart_init_args)
 
+/*typedef struct {
+    UartBaudRate      baud_rate;
+    int	   			   uart_id;
+    UartBitsNum4Char  data_bits;
+    UartExistParity   exist_parity;
+    UartParityMode    parity;
+    UartStopBitsNum   stop_bits;
+    UartFlowCtrl      flow_ctrl;
+    RcvMsgBuff        rcv_buff;
+    TrxMsgBuff        trx_buff;
+    RcvMsgState       rcv_state;
+    int               received;
+    int               buff_uart_no;  //indicate which uart use tx/rx buffer
+} UartDevice; */
+
+
 STATIC mp_obj_t pyb_uart_init_helper(pyb_uart_obj_t *self, uint n_args, const mp_obj_t *args, mp_map_t *kw_args) {
+	UartDevice *uart;
+	
     // parse args 
-    printf("In pyb_uart_init_helper before mp_arg_parse_all (port ID %d); passed %d args, expecting up to %d args for initialization (baud, bits per byte, stop bits, parity)\n",self->uart_id, n_args, PYB_UART_INIT_NUM_ARGS);
+    printf("In pyb_uart_init_helper before mp_arg_parse_all (port ID %d); passed %d args, expecting up to %d args for initialization (baud, bits per byte, stop bits, parity)\n",self->uart->uart_id, n_args, PYB_UART_INIT_NUM_ARGS);
     mp_arg_val_t vals[PYB_UART_INIT_NUM_ARGS];
     mp_arg_parse_all(n_args, args, kw_args, PYB_UART_INIT_NUM_ARGS, pyb_uart_init_args, vals);
     
-    printf("In pyb_uart_init_helper, port ID: %d, &self->uart: %x  size: %d  ID: %x\n", self->uart_id, &self->uart, sizeof(self->uart), self->uart_id);
-    //puts("Performing memset on &self->uart");
-    //memset(&self->uart, 0, sizeof(self->uart));
-    //puts("Memset complete");
-
-    /*
-    // set the UART configuration values
-    UART_InitTypeDef *init = &self->uart.Init;
-    init->BaudRate = vals[0].u_int;
-    init->WordLength = vals[1].u_int == 8 ? UART_WORDLENGTH_8B : UART_WORDLENGTH_9B;
-    switch (vals[2].u_int) {
-        case 1: init->StopBits = UART_STOPBITS_1; break;
-        default: init->StopBits = UART_STOPBITS_2; break;
+    printf("In pyb_uart_init_helper pt2, port ID: %d, baud rate: %d\n", (int)vals[1].u_int, (int)vals[0].u_int);
+    //printf("In pyb_uart_init_helper, port ID: %d, &self->uart: %x  size: %d  ID: %x\n", self->uart_id, &self->uart, sizeof(self->uart), self->uart_id);
+    
+    switch(vals[1].u_int)
+    {
+    	case 0:
+    		uart = &uart0;
+    		break;
+    	case 1:
+    		uart = &uart1;
+    		break;
+    	case 2:
+    		uart = &uart2;
+    		break;
+    	default:
+    		return(NULL);
     }
-    if (vals[3].u_obj == mp_const_none) {
-        init->Parity = UART_PARITY_NONE;
+    puts("Performing memset on &self->uart");
+    memset(uart, 0, sizeof(UartDevice));
+    puts("Memset complete");
+
+    
+    // set the UART configuration values
+    //puts("In pyb_uart_init_helper setting Instance");
+    //UART_InitTypeDef *init = &self->uart; // init should be of type UART_InitTypeDef, with uart.Instance pointing to the struct of settings.  How does Instance get set???
+    puts("In pyb_uart_init_helper setting baud");
+    uart->baud_rate = vals[0].u_int;
+    puts("In pyb_uart_init_helper setting ID");
+    uart->uart_id = vals[1].u_int;
+    puts("In pyb_uart_init_helper setting word length");
+    uart->data_bits = vals[2].u_int;
+    puts("In pyb_uart_init_helper setting stop bits");
+    switch (vals[3].u_int) {
+        case 2: uart->stop_bits = 2; break;
+        default: uart->stop_bits = 1; break;
+    }
+    puts("In pyb_uart_init_helper setting parity");
+    if (vals[4].u_obj == mp_const_none) {
+        uart->parity = 0;
     } else {
         mp_int_t parity = mp_obj_get_int(vals[3].u_obj);
-        init->Parity = (parity & 1) ? UART_PARITY_ODD : UART_PARITY_EVEN;
+        uart->parity = parity;
     }
-    init->Mode = UART_MODE_TX_RX;
-    init->HwFlowCtl = UART_HWCONTROL_NONE;
-    init->OverSampling = UART_OVERSAMPLING_16;*/
-
-    // init UART (if it fails, it's because the port doesn't exist)
-    printf("Initializing UART number %d at %d baud, %d bits, %d stop bits...\n", self->uart_id, vals[0].u_int, vals[1].u_int, vals[2].u_int);
+    self->uart = uart;
+    printf("Initializing UART number %d at %d baud, %d bits, %d stop bits...\n", (int)uart->uart_id, (int)vals[0].u_int, (int)vals[2].u_int, (int)vals[3].u_int);
     uart_init(self, vals[0].u_int);
     puts("Init complete!");
     return mp_const_none;
@@ -299,6 +364,7 @@ STATIC mp_obj_t pyb_uart_init_helper(pyb_uart_obj_t *self, uint n_args, const mp
 ///
 STATIC mp_obj_t pyb_uart_make_new(mp_obj_t type_in, uint n_args, uint n_kw, const mp_obj_t *args) {
     // check arguments
+    puts("Start: pyb_uart_make_new");
     mp_arg_check_num(n_args, n_kw, 1, MP_OBJ_FUN_ARGS_MAX, true);
 
     // create object
@@ -306,11 +372,11 @@ STATIC mp_obj_t pyb_uart_make_new(mp_obj_t type_in, uint n_args, uint n_kw, cons
     o->base.type = &pyb_uart_type;
 
     // work out port
-    o->uart_id = 0;
+    o->uart->uart_id = 0;
 
     if (MP_OBJ_IS_STR(args[0])) {
-        const char *port = mp_obj_str_get_str(args[0]);
-        o->uart_id = mp_obj_get_int(args[0]);
+        //const char *port = mp_obj_str_get_str(args[0]);
+        o->uart->uart_id = mp_obj_get_int(args[0]);
     }
 
     if (n_args > 1 || n_kw > 0) {
@@ -326,8 +392,9 @@ STATIC mp_obj_t pyb_uart_make_new(mp_obj_t type_in, uint n_args, uint n_kw, cons
 
 // Entry point from external function call
 STATIC mp_obj_t pyb_uart_init(uint n_args, const mp_obj_t *args, mp_map_t *kw_args) {
-	printf("In pyb_uart_init, calling pyb_uart_init_helper, arg count: %d  arg 0: %x  args: %x  mp_map: %x\n",n_args, args[0], args, kw_args);
-    return pyb_uart_init_helper(args[0], n_args - 1, args + 1, kw_args);
+	//printf("In pyb_uart_init, calling pyb_uart_init_helper, arg count: %d  arg 0: %d  arg 1: %d  args: %x  mp_map: %x\n",n_args, (int)mp_obj_get_int(args[0]), (int)mp_obj_get_int(args[1]), args, kw_args);
+	return pyb_uart_init_helper(args[0], n_args, args, kw_args);
+    //return pyb_uart_init_helper(args[0], n_args - 1, args + 1, kw_args);
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_KW(pyb_uart_init_obj, 1, pyb_uart_init);
 

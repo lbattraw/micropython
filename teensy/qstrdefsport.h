@@ -131,6 +131,7 @@ Q(polarity)
 t
 // for UART class
 Q(UART)
+Q(uart_id)
 Q(baudrate)
 Q(bits)
 Q(stop)

@@ -60,22 +60,39 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-void serial_begin(uint32_t divisor);
-void serial_format(uint32_t format);
-void serial_end(void);
-void serial_set_transmit_pin(uint8_t pin);
-void serial_putchar(uint32_t c);
-void serial_write(const void *buf, unsigned int count);
-void serial_flush(void);
-int serial_write_buffer_free(void);
-int serial_available(void);
-int serial_getchar(void);
-int serial_peek(void);
-void serial_clear(void);
-void serial_print(const char *p);
-void serial_phex(uint32_t n);
-void serial_phex16(uint32_t n);
-void serial_phex32(uint32_t n);
+void serial0_begin(uint32_t divisor);
+void serial0_format(uint32_t format);
+void serial0_end(void);
+void serial0_set_transmit_pin(uint8_t pin);
+void serial0_putchar(uint32_t c);
+void serial0_write(const void *buf, unsigned int count);
+void serial0_flush(void);
+int serial0_write_buffer_free(void);
+int serial0_available(void);
+int serial0_getchar(void);
+int serial0_peek(void);
+void serial0_clear(void);
+void serial0_print(const char *p);
+void serial0_phex(uint32_t n);
+void serial0_phex16(uint32_t n);
+void serial0_phex32(uint32_t n);
+
+void serial1_begin(uint32_t divisor);
+void serial1_format(uint32_t format);
+void serial1_end(void);
+void serial1_set_transmit_pin(uint8_t pin);
+void serial1_putchar(uint32_t c);
+void serial1_write(const void *buf, unsigned int count);
+void serial1_flush(void);
+int serial1_write_buffer_free(void);
+int serial1_available(void);
+int serial1_getchar(void);
+int serial1_peek(void);
+void serial1_clear(void);
+void serial1_print(const char *p);
+void serial1_phex(uint32_t n);
+void serial1_phex16(uint32_t n);
+void serial1_phex32(uint32_t n);
 
 void serial2_begin(uint32_t divisor);
 void serial2_format(uint32_t format);
@@ -89,19 +106,11 @@ int serial2_available(void);
 int serial2_getchar(void);
 int serial2_peek(void);
 void serial2_clear(void);
+void serial2_print(const char *p);
+void serial2_phex(uint32_t n);
+void serial2_phex16(uint32_t n);
+void serial2_phex32(uint32_t n);
 
-void serial3_begin(uint32_t divisor);
-void serial3_format(uint32_t format);
-void serial3_end(void);
-void serial3_set_transmit_pin(uint8_t pin);
-void serial3_putchar(uint32_t c);
-void serial3_write(const void *buf, unsigned int count);
-void serial3_flush(void);
-int serial3_write_buffer_free(void);
-int serial3_available(void);
-int serial3_getchar(void);
-int serial3_peek(void);
-void serial3_clear(void);
 
 typedef enum {
     UART_BIT_RATE_300     = 300,
@@ -185,6 +194,7 @@ typedef enum {
 
 typedef struct {
     UartBaudRate      baud_rate;
+    int	   			   uart_id;
     UartBitsNum4Char  data_bits;
     UartExistParity   exist_parity;
     UartParityMode    parity;
@@ -195,7 +205,6 @@ typedef struct {
     RcvMsgState       rcv_state;
     int               received;
     int               buff_uart_no;  //indicate which uart use tx/rx buffer
-    UART_TypeDef	   *Instance;
 } UartDevice;
 
 
