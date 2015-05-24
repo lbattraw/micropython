@@ -88,8 +88,9 @@ struct _pyb_uart_obj_t {
 // #define UART0                   (*(KINETISK_UART_t *)0x4006A000)
 
 
-bool uart_init(pyb_uart_obj_t *uart_obj, UartDevice *uh, uint32_t baudrate) {
-	printf("uart_init, Handle: %x  UartDevice: %x\n", uh, uart_obj->uart);
+bool uart_init(pyb_uart_obj_t *uart_obj, uint32_t baudrate) {
+	UartDevice *uh = &uart_obj->uart;
+	//printf("uart_init, uart_obj: %x  Handle: %x  UartDevice: %x\n", &uart_obj, uh, uart_obj->uart);
 	printf("uart_init calling for port ID %d at %d baud\n",uh->uart_id, uh->baud_rate);
 	
 	switch (uh->uart_id) {
@@ -97,17 +98,14 @@ bool uart_init(pyb_uart_obj_t *uart_obj, UartDevice *uh, uint32_t baudrate) {
 		puts("uart_init called for UART_NONE");
 		break;
 	case PYB_UART_0:
-		//UARTx = UART0;
 		printf("Calling serial0_begin for port %d at %d baud\n", (int)uh->uart_id, (int)baudrate);
 		serial0_begin(BAUD2DIV(baudrate));
 		break;
 	case PYB_UART_1:
-		//UARTx = UART1;
 		printf("Calling serial1_begin for port %d at %d baud\n", (int)uh->uart_id, (int)baudrate);
 		serial1_begin(BAUD2DIV(baudrate));
 		break;
 	case PYB_UART_2:
-		//UARTx = UART2;
 		printf("Calling serial2_begin for port %d at %d baud\n", (int)uh->uart_id, (int)baudrate);
 		serial2_begin(BAUD2DIV3(baudrate));
 		break;
@@ -293,7 +291,7 @@ STATIC mp_obj_t pyb_uart_init_helper(pyb_uart_obj_t *self, uint n_args, const mp
 	UartDevice *uart = self->uart;
 	
     // parse args 
-    printf("In pyb_uart_init_helper before mp_arg_parse_all (port ID %d); passed %d args, expecting up to %d args for initialization (baud, bits per byte, stop bits, parity)\n",self->uart->uart_id, n_args, PYB_UART_INIT_NUM_ARGS);
+    printf("In pyb_uart_init_helper before mp_arg_parse_all self: %x  self->uart: %x  passed %d args, expecting up to %d args for initialization (baud, bits per byte, stop bits, parity)\n", self, &self->uart, n_args, PYB_UART_INIT_NUM_ARGS);
     mp_arg_val_t vals[PYB_UART_INIT_NUM_ARGS];
     mp_arg_parse_all(n_args, args, kw_args, PYB_UART_INIT_NUM_ARGS, pyb_uart_init_args, vals);
     
@@ -346,8 +344,8 @@ STATIC mp_obj_t pyb_uart_init_helper(pyb_uart_obj_t *self, uint n_args, const mp
     //printf("Setting uart struct, source size %d, target size: %d\n", sizeof(uart), sizeof(self->uart));
     //self->uart = uart;
     printf("Initializing UART number %d at %d baud, %d bits, %d stop bits...\n", (int)uart->uart_id, (int)uart->baud_rate, (int)uart->data_bits, (int)uart->stop_bits);
-    printf("calling uart_init, UartDevice: %x\n", uart);
-    uart_init(self, uart, vals[0].u_int);
+    printf("calling uart_init, self: %x  UartDevice: %x  self->uart: %x\n", &self, &uart, &self->uart);
+    uart_init(&self, vals[0].u_int);
     puts("Init complete!");
     return mp_const_none;
 }
@@ -420,50 +418,49 @@ STATIC mp_obj_t pyb_uart_any(mp_obj_t self_in) {
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(pyb_uart_any_obj, pyb_uart_any);
 
-/// \method send(send, *, timeout=5000)
+/// \method send(send, *, uart_id=0, timeout=5000)
 /// Send data on the bus:
 ///
 ///   - `send` is the data to send (an integer to send, or a buffer object).
 ///   - `timeout` is the timeout in milliseconds to wait for the send.
-///
+///	  - `uart_id` is the UART number to use when sending the data
 /// Return value: `None`.
-STATIC const mp_arg_t pyb_uart_send_args[] = {
-    { MP_QSTR_send,    MP_ARG_REQUIRED | MP_ARG_OBJ, {.u_obj = MP_OBJ_NULL} },
+STATIC const mp_arg_t pyb_uart_write_args[] = {
+    { MP_QSTR_write, MP_ARG_REQUIRED | MP_ARG_OBJ, {.u_obj = MP_OBJ_NULL} },
+    { MP_QSTR_uart_id, MP_ARG_KW_ONLY | MP_ARG_INT, {.u_int = 0} },
     { MP_QSTR_timeout, MP_ARG_KW_ONLY | MP_ARG_INT, {.u_int = 5000} },
 };
-#define PYB_UART_SEND_NUM_ARGS MP_ARRAY_SIZE(pyb_uart_send_args)
+#define PYB_UART_WRITE_NUM_ARGS MP_ARRAY_SIZE(pyb_uart_write_args)
 
-STATIC mp_obj_t pyb_uart_send(uint n_args, const mp_obj_t *args, mp_map_t *kw_args) {
-    // TODO assumes transmission size is 8-bits wide
-
-    pyb_uart_obj_t *self = args[0];
-
+STATIC mp_obj_t pyb_uart_write(uint n_args, const mp_obj_t *args, mp_map_t *kw_args) {
+    // TODO assumes transmission size is 8-bits 
+    mp_uint_t wstr_len;
     // parse args
-    mp_arg_val_t vals[PYB_UART_SEND_NUM_ARGS];
-    mp_arg_parse_all(n_args - 1, args + 1, kw_args, PYB_UART_SEND_NUM_ARGS, pyb_uart_send_args, vals);
+    mp_arg_val_t vals[PYB_UART_WRITE_NUM_ARGS];
+    mp_arg_parse_all(n_args , args , kw_args, PYB_UART_WRITE_NUM_ARGS, pyb_uart_write_args, vals);
 
-#if 0
-    // get the buffer to send from
-    mp_buffer_info_t bufinfo;
-    uint8_t data[1];
-    pyb_buf_get_for_send(vals[0].u_obj, &bufinfo, data);
+    const char *wstr = mp_obj_str_get_data(vals[0].u_obj, &wstr_len);
 
-    // send the data
-    HAL_StatusTypeDef status = HAL_UART_Transmit(&self->uart, bufinfo.buf, bufinfo.len, vals[1].u_int);
-
-    if (status != HAL_OK) {
-        // TODO really need a HardwareError object, or something
-        nlr_raise(mp_obj_new_exception_msg_varg(&mp_type_Exception, "HAL_UART_Transmit failed with code %d", status));
+    printf("pyb_uart_write UART ID: %d  data: %s\n",(int)vals[1].u_int, wstr);
+    switch((int)vals[1].u_int)
+    {
+    	case 0:
+    		serial0_write(wstr, wstr_len);
+    		break;
+    	case 1:
+    		serial1_write(wstr, wstr_len);
+    		break;
+    	case 2:
+    		serial2_write(wstr, wstr_len);
+    		break;
+    	default:
+    		break;
     }
-#else
-    (void)self;
-#endif
-
     return mp_const_none;
 }
-STATIC MP_DEFINE_CONST_FUN_OBJ_KW(pyb_uart_send_obj, 1, pyb_uart_send);
+STATIC MP_DEFINE_CONST_FUN_OBJ_KW(pyb_uart_write_obj, 1, pyb_uart_write);
 
-/// \method recv(recv, *, timeout=5000)
+/// \method read(read, *, timeout=5000)
 ///
 /// Receive data on the bus:
 ///
@@ -473,21 +470,21 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_KW(pyb_uart_send_obj, 1, pyb_uart_send);
 ///
 /// Return value: if `recv` is an integer then a new buffer of the bytes received,
 /// otherwise the same buffer that was passed in to `recv`.
-STATIC const mp_arg_t pyb_uart_recv_args[] = {
-    { MP_QSTR_recv,    MP_ARG_REQUIRED | MP_ARG_OBJ, {.u_obj = MP_OBJ_NULL} },
+STATIC const mp_arg_t pyb_uart_read_args[] = {
+    { MP_QSTR_read,    MP_ARG_REQUIRED | MP_ARG_OBJ, {.u_obj = MP_OBJ_NULL} },
     { MP_QSTR_timeout, MP_ARG_KW_ONLY | MP_ARG_INT, {.u_int = 5000} },
 };
-#define PYB_UART_RECV_NUM_ARGS MP_ARRAY_SIZE(pyb_uart_recv_args)
+#define PYB_UART_READ_NUM_ARGS MP_ARRAY_SIZE(pyb_uart_read_args)
 
-STATIC mp_obj_t pyb_uart_recv(uint n_args, const mp_obj_t *args, mp_map_t *kw_args) {
+STATIC mp_obj_t pyb_uart_read(uint n_args, const mp_obj_t *args, mp_map_t *kw_args) {
     // TODO assumes transmission size is 8-bits wide
 
     pyb_uart_obj_t *self = args[0];
 
 #if 0
     // parse args
-    mp_arg_val_t vals[PYB_UART_RECV_NUM_ARGS];
-    mp_arg_parse_all(n_args - 1, args + 1, kw_args, PYB_UART_RECV_NUM_ARGS, pyb_uart_recv_args, vals);
+    mp_arg_val_t vals[PYB_UART_READ_NUM_ARGS];
+    mp_arg_parse_all(n_args - 1, args + 1, kw_args, PYB_UART_READ_NUM_ARGS, pyb_uart_read_args, vals);
 
     // get the buffer to receive into
     mp_buffer_info_t bufinfo;
@@ -498,7 +495,7 @@ STATIC mp_obj_t pyb_uart_recv(uint n_args, const mp_obj_t *args, mp_map_t *kw_ar
 
     if (status != HAL_OK) {
         // TODO really need a HardwareError object, or something
-        nlr_raise(mp_obj_new_exception_msg_varg(&mp_type_Exception, "HAL_UART_Receive failed with code %d", status));
+        nlr_raise(mp_obj_new_exception_msg_varg(&mp_type_Exception, "HAL_UART_Read failed with code %d", status));
     }
 
     // return the received data
@@ -512,15 +509,15 @@ STATIC mp_obj_t pyb_uart_recv(uint n_args, const mp_obj_t *args, mp_map_t *kw_ar
     return mp_const_none;
 #endif
 }
-STATIC MP_DEFINE_CONST_FUN_OBJ_KW(pyb_uart_recv_obj, 1, pyb_uart_recv);
+STATIC MP_DEFINE_CONST_FUN_OBJ_KW(pyb_uart_read_obj, 1, pyb_uart_read);
 
 STATIC const mp_map_elem_t pyb_uart_locals_dict_table[] = {
     // instance methods
     { MP_OBJ_NEW_QSTR(MP_QSTR_init), (mp_obj_t)&pyb_uart_init_obj },
     { MP_OBJ_NEW_QSTR(MP_QSTR_deinit), (mp_obj_t)&pyb_uart_deinit_obj },
     { MP_OBJ_NEW_QSTR(MP_QSTR_any), (mp_obj_t)&pyb_uart_any_obj },
-    { MP_OBJ_NEW_QSTR(MP_QSTR_send), (mp_obj_t)&pyb_uart_send_obj },
-    { MP_OBJ_NEW_QSTR(MP_QSTR_recv), (mp_obj_t)&pyb_uart_recv_obj },
+    { MP_OBJ_NEW_QSTR(MP_QSTR_write), (mp_obj_t)&pyb_uart_write_obj },
+    { MP_OBJ_NEW_QSTR(MP_QSTR_read), (mp_obj_t)&pyb_uart_read_obj },
 };
 
 STATIC MP_DEFINE_CONST_DICT(pyb_uart_locals_dict, pyb_uart_locals_dict_table);
