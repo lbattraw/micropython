@@ -86,9 +86,8 @@ struct _pyb_uart_obj_t {
 */
 // #define UART0                   (*(KINETISK_UART_t *)0x4006A000)
 
-
 bool uart_init(pyb_uart_obj_t *uart_obj, uint32_t baudrate) {
-	UartDevice *uh = &uart_obj->uart;
+	UartDevice *uh = (UartDevice *)&uart_obj->uart;
 	//printf("uart_init, uart_obj: %x  Handle: %x  UartDevice: %x\n", &uart_obj, uh, uart_obj->uart);
 	printf("uart_init calling for port ID %d at %d baud\n",uh->uart_id, uh->baud_rate);
 	
@@ -277,7 +276,6 @@ STATIC const mp_arg_t pyb_uart_init_args[] = {
     int               buff_uart_no;  //indicate which uart use tx/rx buffer
 } UartDevice; */
 
-
 STATIC mp_obj_t pyb_uart_init_helper(pyb_uart_obj_t *self, uint n_args, const mp_obj_t *args, mp_map_t *kw_args) {
 	UartDevice *uart = self->uart;
 	
@@ -286,7 +284,6 @@ STATIC mp_obj_t pyb_uart_init_helper(pyb_uart_obj_t *self, uint n_args, const mp
     mp_arg_val_t vals[PYB_UART_INIT_NUM_ARGS];
     mp_arg_parse_all(n_args, args, kw_args, PYB_UART_INIT_NUM_ARGS, pyb_uart_init_args, vals);
     //printf("In pyb_uart_init_helper pt2, port ID: %d, baud rate: %d\n", (int)vals[1].u_int, (int)vals[0].u_int);
-
     
     switch(vals[1].u_int)
     {
@@ -327,7 +324,7 @@ STATIC mp_obj_t pyb_uart_init_helper(pyb_uart_obj_t *self, uint n_args, const mp
     //self->uart = uart;
     //printf("Initializing UART number %d at %d baud, %d bits, %d stop bits...\n", (int)uart->uart_id, (int)uart->baud_rate, (int)uart->data_bits, (int)uart->stop_bits);
     //printf("calling uart_init, self: %x  UartDevice: %x  self->uart: %x\n", &self, &uart, &self->uart);
-    uart_init(&self, vals[0].u_int);
+    uart_init(self, vals[0].u_int);
     //puts("Init complete!");
     return mp_const_none;
 }
@@ -443,6 +440,51 @@ STATIC mp_obj_t pyb_uart_write(uint n_args, const mp_obj_t *args, mp_map_t *kw_a
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_KW(pyb_uart_write_obj, 1, pyb_uart_write);
 
+
+// Helper function for reading UART strings
+// Pass UART object to indicate which UART to use, address of buffer to write to, address of length to receive (-1 to receive until a CR (And omit the CR and any LF characters)
+// Returns number of characters received
+int serial_read_string(pyb_uart_obj_t *uart, mp_obj_t *rstr)
+{
+	GET_STR_DATA_LEN(rstr, str_data, str_len);
+	int len = 0, ch = -1;
+	
+	do
+	{
+		ch = -1;
+		while(ch == -1) // getchar returns -1 if no char is available
+		{
+			switch(uart.uart_id)
+			{
+				case 0:
+					ch = serial0_getchar();
+					break;
+				case 1:
+					ch = serial1_getchar();
+					break;
+				case 2:
+					ch = serial2_getchar();
+					break;
+				default:
+					return(0); // If an illegal UART is specified, return 0 characters
+					break;
+			}
+		}
+		if(ch != 10) // LF
+		{
+			if(ch != 13)
+				*bufptr++ = ch;
+			else
+				break;
+		}
+		//Ignore any LF characters;
+		//Don't store CRs and stop when one received
+	}
+	while((bufptr - buf) - buflen > 0);
+	return(bufptr - buf);
+}
+
+
 /// \method read(read, *, timeout=5000)
 ///
 /// Receive data on the bus:
@@ -461,36 +503,35 @@ STATIC const mp_arg_t pyb_uart_read_args[] = {
 
 STATIC mp_obj_t pyb_uart_read(uint n_args, const mp_obj_t *args, mp_map_t *kw_args) {
     // TODO assumes transmission size is 8-bits wide
-
+    int retlen = -1;
     pyb_uart_obj_t *self = args[0];
+    mp_obj_t rb_obj;
 
-#if 0
     // parse args
     mp_arg_val_t vals[PYB_UART_READ_NUM_ARGS];
     mp_arg_parse_all(n_args - 1, args + 1, kw_args, PYB_UART_READ_NUM_ARGS, pyb_uart_read_args, vals);
-
-    // get the buffer to receive into
-    mp_buffer_info_t bufinfo;
-    mp_obj_t o_ret = pyb_buf_get_for_recv(vals[0].u_obj, &bufinfo);
-
-    // receive the data
-    HAL_StatusTypeDef status = HAL_UART_Receive(&self->uart, bufinfo.buf, bufinfo.len, vals[1].u_int);
-
-    if (status != HAL_OK) {
-        // TODO really need a HardwareError object, or something
-        nlr_raise(mp_obj_new_exception_msg_varg(&mp_type_Exception, "HAL_UART_Read failed with code %d", status));
+    printf("pyb_uart_read arg 0: %d\n", vals[0].u_int);
+    
+    //Use the given buffer if first arg is not int
+    if(MP_OBJ_IS_INT(vals[0]))
+    {
+    	vstr *r_vstr;
+    	// allocate a new bytearray of given length
+    	vstr_init(&r_vstr, vals[0].u_int);
+    	mp_obj_t rb_obj = pyb_buf_get_for_recv(&r_vstr, vals[0].u_int);
     }
-
-    // return the received data
-    if (o_ret == MP_OBJ_NULL) {
-        return vals[0].u_obj;
-    } else {
-        return mp_obj_str_builder_end(o_ret);
-    }
-#else
+    else
+    {
+		mp_buffer_info_t bufinfo;
+		mp_obj_t o_ret = pyb_buf_get_for_recv(vals[0].u_obj, &bufinfo);
+		//Need to add timeout code (vals[1])
+		retlen = serial_read_string(&self->uart, &o_ret);
+    
     (void)self;
-    return mp_const_none;
-#endif
+    if(retlen < 0)
+    	return mp_const_none;
+    else
+    	return o_ret;
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_KW(pyb_uart_read_obj, 1, pyb_uart_read);
 
