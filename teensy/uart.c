@@ -86,6 +86,12 @@ struct _pyb_uart_obj_t {
 */
 // #define UART0                   (*(KINETISK_UART_t *)0x4006A000)
 
+
+//TODO add support for USB VCP to all functions as UART_id 3 (Or maybe as 0 with that as default?)
+//What do Freescale docs call UARTs: 0 - 2 or 1 - 3?
+//
+
+
 bool uart_init(pyb_uart_obj_t *uart_obj, uint32_t baudrate) {
 	UartDevice *uh = (UartDevice *)&uart_obj->uart;
 	//printf("uart_init, uart_obj: %x  Handle: %x  UartDevice: %x\n", &uart_obj, uh, uart_obj->uart);
@@ -113,7 +119,8 @@ bool uart_init(pyb_uart_obj_t *uart_obj, uint32_t baudrate) {
 	}
    
    /*
-   THIS section should be changing the settings in hardware, *uh already has all the data initialized with values
+   TODO this section should be changing the settings in hardware to reflect *uh:
+   
    uh->baud_rate = baudrate;
    uh->data_bits = 8;
    uh->stop_bits = 1;
@@ -159,8 +166,6 @@ int uart_rx_char(pyb_uart_obj_t *uart_obj) {
         }
         return(-1);
 }
-
-
 
 void uart_tx_char(pyb_uart_obj_t *uart_obj, int c) {
         switch (uart_obj->uart->uart_id) {
@@ -299,18 +304,13 @@ STATIC mp_obj_t pyb_uart_init_helper(pyb_uart_obj_t *self, uint n_args, const mp
     	default:
     		return(NULL);
     }
-    //puts("In pyb_uart_init_helper setting baud");
     uart->baud_rate = vals[0].u_int;
-    //puts("In pyb_uart_init_helper setting ID");
     uart->uart_id = vals[1].u_int;
-    //puts("In pyb_uart_init_helper setting word length");
     uart->data_bits = vals[2].u_int;
-    //puts("In pyb_uart_init_helper setting stop bits");
     switch (vals[3].u_int) {
         case 2: uart->stop_bits = 2; break;
         default: uart->stop_bits = 1; break;
     }
-    //puts("In pyb_uart_init_helper setting parity");
     if (vals[4].u_obj == mp_const_none) {
         uart->parity = 0;
     } else {
@@ -318,14 +318,7 @@ STATIC mp_obj_t pyb_uart_init_helper(pyb_uart_obj_t *self, uint n_args, const mp
         uart->parity = parity;
     }
     
-    //UartDevice *uart2;
-    //uart2 = self->uart; 
-    //printf("Setting uart struct, source size %d, target size: %d\n", sizeof(uart), sizeof(self->uart));
-    //self->uart = uart;
-    //printf("Initializing UART number %d at %d baud, %d bits, %d stop bits...\n", (int)uart->uart_id, (int)uart->baud_rate, (int)uart->data_bits, (int)uart->stop_bits);
-    //printf("calling uart_init, self: %x  UartDevice: %x  self->uart: %x\n", &self, &uart, &self->uart);
     uart_init(self, vals[0].u_int);
-    //puts("Init complete!");
     return mp_const_none;
 }
 
