@@ -317,7 +317,6 @@ STATIC mp_obj_t pyb_uart_init_helper(pyb_uart_obj_t *self, uint n_args, const mp
         mp_int_t parity = mp_obj_get_int(vals[3].u_obj);
         uart->parity = parity;
     }
-    
     uart_init(self, vals[0].u_int);
     return mp_const_none;
 }
@@ -435,7 +434,8 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_KW(pyb_uart_write_obj, 1, pyb_uart_write);
 
 
 // Helper function for reading UART strings
-// Pass UART object to indicate which UART to use, address of buffer to write to, address of length to receive (-1 to receive until a CR (And omit the CR and any LF characters)
+// Pass UART object to indicate which UART to use, mp_obj_t for string buffer to write to||length to receive
+// Stops on a CR (Omitting the CR and any LF characters)
 // Returns number of characters received
 int serial_read_string(pyb_uart_obj_t *uart, mp_obj_t *rstr)
 {
@@ -494,6 +494,7 @@ STATIC const mp_arg_t pyb_uart_read_args[] = {
 };
 #define PYB_UART_READ_NUM_ARGS MP_ARRAY_SIZE(pyb_uart_read_args)
 
+/*
 STATIC mp_obj_t pyb_uart_read(uint n_args, const mp_obj_t *args, mp_map_t *kw_args) {
     // TODO assumes transmission size is 8-bits wide
     int retlen = -1;
@@ -511,12 +512,9 @@ STATIC mp_obj_t pyb_uart_read(uint n_args, const mp_obj_t *args, mp_map_t *kw_ar
     	vstr *r_vstr;
     	// allocate a new bytearray of given length
     	vstr_init(&r_vstr, vals[0].u_int);
-    	mp_obj_t rb_obj = pyb_buf_get_for_recv(&r_vstr, vals[0].u_int);
-    }
-    else
-    {
-		mp_buffer_info_t bufinfo;
-		mp_obj_t o_ret = pyb_buf_get_for_recv(vals[0].u_obj, &bufinfo);
+    	
+    	//mp_buffer_info_t bufinfo;
+		//pyb_buf_get_for_recv(vals[0].u_obj, &bufinfo);
 		//Need to add timeout code (vals[1])
 		retlen = serial_read_string(&self->uart, &o_ret);
     
@@ -525,7 +523,53 @@ STATIC mp_obj_t pyb_uart_read(uint n_args, const mp_obj_t *args, mp_map_t *kw_ar
     	return mp_const_none;
     else
     	return o_ret;
+}*/
+
+
+// From stmhal
+STATIC mp_uint_t pyb_uart_read(mp_obj_t self_in, void *buf_in, mp_uint_t size, int *errcode) {
+    pyb_uart_obj_t *self = self_in;
+    byte *buf = buf_in;
+
+    // check that size is a multiple of character width
+    if (size & self->char_width) {
+        *errcode = EIO;
+        return MP_STREAM_ERROR;
+    }
+
+    // convert byte size to char size
+    size >>= self->char_width;
+
+    // make sure we want at least 1 char
+    if (size == 0) {
+        return 0;
+    }
+
+    // wait for first char to become available
+    if (!uart_rx_wait(self, self->timeout)) {
+        // we can either return 0 to indicate EOF (then read() method returns b'')
+        // or return EAGAIN error to indicate non-blocking (then read() method returns None)
+        return 0;
+    }
+
+    // read the data
+    byte *orig_buf = buf;
+    for (;;) {
+        int data = uart_rx_char(self);
+        if (self->char_width == CHAR_WIDTH_9BIT) {
+            *(uint16_t*)buf = data;
+            buf += 2;
+        } else {
+            *buf++ = data;
+        }
+        if (--size == 0 || !uart_rx_wait(self, self->timeout_char)) {
+            // return number of bytes read
+            return buf - orig_buf;
+        }
+    }
 }
+
+
 STATIC MP_DEFINE_CONST_FUN_OBJ_KW(pyb_uart_read_obj, 1, pyb_uart_read);
 
 STATIC const mp_map_elem_t pyb_uart_locals_dict_table[] = {
