@@ -57,12 +57,12 @@ typedef struct {
     bool    servers_sleeping;
     bool    simplelink;
     bool    running;
-}pybwdt_data_t;
+} pybwdt_data_t;
 
 /******************************************************************************
  DECLARE PRIVATE DATA
  ******************************************************************************/
-static  pybwdt_data_t   pybwdt_data = {.servers = false, .servers_sleeping = false, .simplelink = false, .running = false};
+STATIC pybwdt_data_t   pybwdt_data = {.servers = false, .servers_sleeping = false, .simplelink = false, .running = false};
 STATIC const mp_obj_base_t pyb_wdt_obj = {&pyb_wdt_type};
 
 /******************************************************************************
@@ -71,15 +71,6 @@ STATIC const mp_obj_base_t pyb_wdt_obj = {&pyb_wdt_type};
 // must be called in main.c just after initializing the hal
 __attribute__ ((section (".boot")))
 void pybwdt_init0 (void) {
-}
-
-void pybwdt_kick (void) {
-    // check that the servers and simplelink are running fine
-    if ((pybwdt_data.servers || pybwdt_data.servers_sleeping) && pybwdt_data.simplelink && pybwdt_data.running) {
-        pybwdt_data.servers = false;
-        pybwdt_data.simplelink = false;
-        MAP_WatchdogIntClear(WDT_BASE);
-    }
 }
 
 void pybwdt_srv_alive (void) {
@@ -139,7 +130,11 @@ STATIC mp_obj_t pyb_wdt_make_new (mp_obj_t type_in, mp_uint_t n_args, mp_uint_t 
 /// \function wdt_kick()
 /// Kicks the watchdog timer
 STATIC mp_obj_t pyb_kick_wdt(mp_obj_t self) {
-    pybwdt_kick ();
+    if ((pybwdt_data.servers || pybwdt_data.servers_sleeping) && pybwdt_data.simplelink && pybwdt_data.running) {
+        pybwdt_data.servers = false;
+        pybwdt_data.simplelink = false;
+        MAP_WatchdogIntClear(WDT_BASE);
+    }
     return mp_const_none;
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(pyb_kick_wdt_obj, pyb_kick_wdt);
