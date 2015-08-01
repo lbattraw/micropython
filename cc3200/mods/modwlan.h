@@ -55,7 +55,7 @@ extern _SlLockObj_t wlan_LockObj;
  ******************************************************************************/
 extern void wlan_pre_init (void);
 extern modwlan_Status_t wlan_sl_enable (SlWlanMode_t mode, const char *ssid, uint8_t ssid_len, uint8_t sec,
-                                        const char *key, uint8_t key_len, uint8_t channel);
+                                        const char *key, uint8_t key_len, uint8_t channel, bool append_mac);
 extern void wlan_first_start (void);
 extern void wlan_update(void);
 extern void wlan_stop (uint32_t timeout);
@@ -63,6 +63,7 @@ extern void wlan_start (void);
 extern void wlan_get_mac (uint8_t *macAddress);
 extern void wlan_get_ip (uint32_t *ip);
 extern bool wlan_is_connected (void);
+extern void wlan_set_current_time (uint32_t seconds_since_2000);
 
 extern int wlan_gethostbyname(const char *name, mp_uint_t len, uint8_t *out_ip, uint8_t family);
 extern int wlan_socket_socket(mod_network_socket_obj_t *s, int *_errno);

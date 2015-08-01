@@ -138,7 +138,6 @@ STATIC mp_obj_t socket_make_new(mp_obj_t type_in, mp_uint_t n_args, mp_uint_t n_
     s->sock_base.u_param.fileno = -1;
     s->sock_base.has_timeout = false;
     s->sock_base.cert_req = false;
-    s->sock_base.closed = false;
 
     if (n_args > 0) {
         s->sock_base.u_param.domain = mp_obj_get_int(args[0]);
@@ -158,7 +157,6 @@ STATIC mp_obj_t socket_make_new(mp_obj_t type_in, mp_uint_t n_args, mp_uint_t n_
     if (wlan_socket_socket(s, &_errno) != 0) {
         nlr_raise(mp_obj_new_exception_arg1(&mp_type_OSError, MP_OBJ_NEW_SMALL_INT(-_errno)));
     }
-
     return s;
 }
 
@@ -401,12 +399,14 @@ STATIC const mp_map_elem_t socket_locals_dict_table[] = {
     { MP_OBJ_NEW_QSTR(MP_QSTR_accept),          (mp_obj_t)&socket_accept_obj },
     { MP_OBJ_NEW_QSTR(MP_QSTR_connect),         (mp_obj_t)&socket_connect_obj },
     { MP_OBJ_NEW_QSTR(MP_QSTR_send),            (mp_obj_t)&socket_send_obj },
+    { MP_OBJ_NEW_QSTR(MP_QSTR_sendall),         (mp_obj_t)&socket_send_obj },
     { MP_OBJ_NEW_QSTR(MP_QSTR_recv),            (mp_obj_t)&socket_recv_obj },
     { MP_OBJ_NEW_QSTR(MP_QSTR_sendto),          (mp_obj_t)&socket_sendto_obj },
     { MP_OBJ_NEW_QSTR(MP_QSTR_recvfrom),        (mp_obj_t)&socket_recvfrom_obj },
     { MP_OBJ_NEW_QSTR(MP_QSTR_setsockopt),      (mp_obj_t)&socket_setsockopt_obj },
     { MP_OBJ_NEW_QSTR(MP_QSTR_settimeout),      (mp_obj_t)&socket_settimeout_obj },
     { MP_OBJ_NEW_QSTR(MP_QSTR_setblocking),     (mp_obj_t)&socket_setblocking_obj },
+    { MP_OBJ_NEW_QSTR(MP_QSTR_makefile),        (mp_obj_t)&mp_identity_obj },
 
     // stream methods
     { MP_OBJ_NEW_QSTR(MP_QSTR_read),            (mp_obj_t)&mp_stream_read_obj },
@@ -420,12 +420,30 @@ MP_DEFINE_CONST_DICT(socket_locals_dict, socket_locals_dict_table);
 
 STATIC mp_uint_t socket_read(mp_obj_t self_in, void *buf, mp_uint_t size, int *errcode) {
     mod_network_socket_obj_t *self = self_in;
-    return wlan_socket_recv(self, buf, size, errcode);
+    mp_int_t ret = wlan_socket_recv(self, buf, size, errcode);
+    if (ret < 0) {
+        // we need to ignore the socket closed error here because a readall() or read() without params
+        // only returns when the socket is closed by the other end
+        if (*errcode != SL_ESECCLOSED) {
+            ret = MP_STREAM_ERROR;
+            // needed to convert simplelink's negative error codes to POSIX
+            (*errcode) *= -1;
+        } else {
+            ret = 0;
+        }
+    }
+    return ret;
 }
 
 STATIC mp_uint_t socket_write(mp_obj_t self_in, const void *buf, mp_uint_t size, int *errcode) {
     mod_network_socket_obj_t *self = self_in;
-    return wlan_socket_send(self, buf, size, errcode);
+    mp_int_t ret = wlan_socket_send(self, buf, size, errcode);
+    if (ret < 0) {
+        ret = MP_STREAM_ERROR;
+        // needed to convert simplelink's negative error codes to POSIX
+        (*errcode) *= -1;
+    }
+    return ret;
 }
 
 STATIC mp_uint_t socket_ioctl(mp_obj_t self_in, mp_uint_t request, mp_uint_t arg, int *errcode) {
